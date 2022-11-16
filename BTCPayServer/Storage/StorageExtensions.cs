@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices.ComTypes;
+using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Configuration;
 using BTCPayServer.Storage.Services;
 using BTCPayServer.Storage.Services.Providers;
@@ -11,6 +13,7 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NBitcoin.Logging;
 
 namespace BTCPayServer.Storage
@@ -21,36 +24,40 @@ namespace BTCPayServer.Storage
         {
             serviceCollection.AddSingleton<StoredFileRepository>();
             serviceCollection.AddSingleton<FileService>();
-//            serviceCollection.AddSingleton<IStorageProviderService, AmazonS3FileProviderService>();
+            serviceCollection.AddSingleton<IFileService>(provider => provider.GetRequiredService<FileService>());
+            //            serviceCollection.AddSingleton<IStorageProviderService, AmazonS3FileProviderService>();
             serviceCollection.AddSingleton<IStorageProviderService, AzureBlobStorageFileProviderService>();
             serviceCollection.AddSingleton<IStorageProviderService, FileSystemFileProviderService>();
-//            serviceCollection.AddSingleton<IStorageProviderService, GoogleCloudStorageFileProviderService>();
+            //            serviceCollection.AddSingleton<IStorageProviderService, GoogleCloudStorageFileProviderService>();
         }
 
-        public static void UseProviderStorage(this IApplicationBuilder builder, BTCPayServerOptions options)
+        public static void UseProviderStorage(this IApplicationBuilder builder, IOptions<DataDirectories> datadirs)
         {
             try
             {
-                var dir = FileSystemFileProviderService.GetStorageDir(options);
-                var tmpdir = FileSystemFileProviderService.GetTempStorageDir(options);
                 DirectoryInfo dirInfo;
-                if (!Directory.Exists(dir))
+                if (!Directory.Exists(datadirs.Value.StorageDir))
                 {
-                    dirInfo = Directory.CreateDirectory(dir);
+                    dirInfo = Directory.CreateDirectory(datadirs.Value.StorageDir);
                 }
                 else
                 {
-                    dirInfo = new DirectoryInfo(dir);
+                    dirInfo = new DirectoryInfo(datadirs.Value.StorageDir);
+                }
+                
+                if (!Directory.Exists(datadirs.Value.TempDir))
+                {
+                    Directory.CreateDirectory(datadirs.Value.TempDir);
                 }
 
                 DirectoryInfo tmpdirInfo;
-                if (!Directory.Exists(tmpdir))
+                if (!Directory.Exists(datadirs.Value.TempStorageDir))
                 {
-                    tmpdirInfo = Directory.CreateDirectory(tmpdir);
+                    tmpdirInfo = Directory.CreateDirectory(datadirs.Value.TempStorageDir);
                 }
                 else
                 {
-                    tmpdirInfo = new DirectoryInfo(tmpdir);
+                    tmpdirInfo = new DirectoryInfo(datadirs.Value.TempStorageDir);
                 }
 
                 builder.UseStaticFiles(new StaticFileOptions()

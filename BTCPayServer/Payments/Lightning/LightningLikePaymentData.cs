@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using BTCPayServer.Data;
-using BTCPayServer.JsonConverters;
+using BTCPayServer.Client.Models;
 using BTCPayServer.Lightning;
 using BTCPayServer.Lightning.JsonConverters;
-using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Services.Invoices;
 using NBitcoin;
 using Newtonsoft.Json;
@@ -22,6 +16,7 @@ namespace BTCPayServer.Payments.Lightning
         public string BOLT11 { get; set; }
         [JsonConverter(typeof(NBitcoin.JsonConverters.UInt256JsonConverter))]
         public uint256 PaymentHash { get; set; }
+        public string PaymentType { get; set; }
 
         public string GetDestination()
         {
@@ -39,7 +34,7 @@ namespace BTCPayServer.Payments.Lightning
 
         public PaymentType GetPaymentType()
         {
-            return PaymentTypes.LightningLike;
+            return string.IsNullOrEmpty(PaymentType) ? PaymentTypes.LightningLike : PaymentTypes.Parse(PaymentType);
         }
 
         public string[] GetSearchTerms()

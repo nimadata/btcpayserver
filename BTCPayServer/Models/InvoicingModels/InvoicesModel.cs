@@ -1,20 +1,17 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using BTCPayServer.Client.Models;
 using BTCPayServer.Services.Invoices;
 
 namespace BTCPayServer.Models.InvoicingModels
 {
-    public class InvoicesModel
+    public class InvoicesModel : BasePagingViewModel
     {
-        public int Skip { get; set; }
-        public int Count { get; set; }
-        public int Total { get; set; }
-        public string SearchTerm { get; set; }
-        public int? TimezoneOffset { get; set; }
         public List<InvoiceModel> Invoices { get; set; } = new List<InvoiceModel>();
+        public override int CurrentPageCount => Invoices.Count;
         public string[] StoreIds { get; set; }
+        public string StoreId { get; set; }
+        public bool IncludeArchived { get; set; }
     }
 
     public class InvoiceModel
@@ -25,15 +22,15 @@ namespace BTCPayServer.Models.InvoicingModels
         public string RedirectUrl { get; set; }
         public string InvoiceId { get; set; }
 
-        public InvoiceStatus Status { get; set; }
-        public string StatusString { get; set; }
-        public bool CanMarkComplete { get; set; }
+        public InvoiceState Status { get; set; }
+        public bool CanMarkSettled { get; set; }
         public bool CanMarkInvalid { get; set; }
-        public bool CanMarkStatus => CanMarkComplete || CanMarkInvalid;
+        public bool CanMarkStatus => CanMarkSettled || CanMarkInvalid;
         public bool ShowCheckout { get; set; }
         public string ExceptionStatus { get; set; }
         public string AmountCurrency { get; set; }
 
         public InvoiceDetailsModel Details { get; set; }
+        public bool HasRefund { get; set; }
     }
 }

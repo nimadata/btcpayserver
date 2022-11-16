@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System;
 using BTCPayServer.Payments;
 
 namespace BTCPayServer.Data
@@ -23,7 +20,7 @@ namespace BTCPayServer.Data
             addressInvoiceData.Address = address + "#" + paymentMethodId.ToString();
             return addressInvoiceData;
         }
-        public static PaymentMethodId GetpaymentMethodId(this AddressInvoiceData addressInvoiceData)
+        public static PaymentMethodId GetPaymentMethodId(this AddressInvoiceData addressInvoiceData)
         {
             if (addressInvoiceData.Address == null)
                 return null;

@@ -1,17 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
+using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
 using BTCPayServer.Models.PaymentRequestViewModels;
 using BTCPayServer.Payments;
-using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Services.Apps;
 using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.PaymentRequests;
 using BTCPayServer.Services.Rates;
 using Microsoft.AspNetCore.SignalR;
+using PaymentRequestData = BTCPayServer.Data.PaymentRequestData;
 
 namespace BTCPayServer.PaymentRequest
 {
@@ -23,7 +22,6 @@ namespace BTCPayServer.PaymentRequest
         private readonly CurrencyNameTable _currencies;
 
         public PaymentRequestService(
-            IHubContext<PaymentRequestHub> hubContext,
             PaymentRequestRepository paymentRequestRepository,
             BTCPayNetworkProvider btcPayNetworkProvider,
             AppService appService,
@@ -48,17 +46,21 @@ namespace BTCPayServer.PaymentRequest
             if (blob.ExpiryDate.HasValue)
             {
                 if (blob.ExpiryDate.Value <= DateTimeOffset.UtcNow)
-                    currentStatus = PaymentRequestData.PaymentRequestStatus.Expired;
+                    currentStatus = Client.Models.PaymentRequestData.PaymentRequestStatus.Expired;
             }
-            else if (pr.Status == PaymentRequestData.PaymentRequestStatus.Pending)
+            else if (currentStatus != Client.Models.PaymentRequestData.PaymentRequestStatus.Completed)
             {
-                var rateRules = pr.StoreData.GetStoreBlob().GetRateRules(_BtcPayNetworkProvider);
+                currentStatus = Client.Models.PaymentRequestData.PaymentRequestStatus.Pending;
+            }
+
+            if (currentStatus != Client.Models.PaymentRequestData.PaymentRequestStatus.Expired)
+            {
                 var invoices = await _PaymentRequestRepository.GetInvoicesForPaymentRequest(pr.Id);
                 var contributions = _AppService.GetContributionsByPaymentMethodId(blob.Currency, invoices, true);
-                if (contributions.TotalCurrency >= blob.Amount)
-                {
-                    currentStatus = PaymentRequestData.PaymentRequestStatus.Completed;
-                }
+
+                currentStatus = contributions.TotalCurrency >= blob.Amount
+                    ? Client.Models.PaymentRequestData.PaymentRequestStatus.Completed
+                    : Client.Models.PaymentRequestData.PaymentRequestStatus.Pending;
             }
 
             if (currentStatus != pr.Status)
@@ -77,50 +79,81 @@ namespace BTCPayServer.PaymentRequest
             }
 
             var blob = pr.GetBlob();
-            var rateRules = pr.StoreData.GetStoreBlob().GetRateRules(_BtcPayNetworkProvider);
 
             var invoices = await _PaymentRequestRepository.GetInvoicesForPaymentRequest(id);
 
             var paymentStats = _AppService.GetContributionsByPaymentMethodId(blob.Currency, invoices, true);
             var amountDue = blob.Amount - paymentStats.TotalCurrency;
-            var pendingInvoice = invoices.SingleOrDefault(entity => entity.Status == InvoiceStatus.New);
+            var pendingInvoice = invoices.OrderByDescending(entity => entity.InvoiceTime)
+                .FirstOrDefault(entity => entity.Status == InvoiceStatusLegacy.New);
 
             return new ViewPaymentRequestViewModel(pr)
             {
+                Archived = pr.Archived,
                 AmountFormatted = _currencies.FormatCurrency(blob.Amount, blob.Currency),
                 AmountCollected = paymentStats.TotalCurrency,
                 AmountCollectedFormatted = _currencies.FormatCurrency(paymentStats.TotalCurrency, blob.Currency),
                 AmountDue = amountDue,
                 AmountDueFormatted = _currencies.FormatCurrency(amountDue, blob.Currency),
                 CurrencyData = _currencies.GetCurrencyData(blob.Currency, true),
-                LastUpdated = DateTime.Now,
+                LastUpdated = DateTime.UtcNow,
                 AnyPendingInvoice = pendingInvoice != null,
-                PendingInvoiceHasPayments = pendingInvoice != null && 
+                PendingInvoiceHasPayments = pendingInvoice != null &&
                                             pendingInvoice.ExceptionStatus != InvoiceExceptionStatus.None,
-                Invoices = invoices.Select(entity => new ViewPaymentRequestViewModel.PaymentRequestInvoice()
+                Invoices = new ViewPaymentRequestViewModel.InvoiceList(invoices.Select(entity =>
                 {
-                    Id = entity.Id,
-                    Amount = entity.ProductInformation.Price,
-                    AmountFormatted = _currencies.FormatCurrency(entity.ProductInformation.Price, blob.Currency),
-                    Currency = entity.ProductInformation.Currency,
-                    ExpiryDate = entity.ExpirationTime.DateTime,
-                    Status = entity.GetInvoiceState().ToString(),
-                    Payments = entity.GetPayments().Select(paymentEntity =>
-                    {
-                        var paymentData = paymentEntity.GetCryptoPaymentData();
-                        var paymentMethodId = paymentEntity.GetPaymentMethodId();
-
-                        string txId = paymentData.GetPaymentId();
-                        string link = GetTransactionLink(paymentMethodId, txId);
-                        return new ViewPaymentRequestViewModel.PaymentRequestInvoicePayment()
+                    var state = entity.GetInvoiceState();
+                    var payments = entity
+                        .GetPayments(true)
+                        .Select(paymentEntity =>
                         {
-                            Amount = paymentData.GetValue(),
-                            PaymentMethod = paymentMethodId.ToString(),
-                            Link = link,
-                            Id = txId
-                        };
-                    }).ToList()
-                }).ToList()
+                            var paymentData = paymentEntity.GetCryptoPaymentData();
+                            var paymentMethodId = paymentEntity.GetPaymentMethodId();
+                            if (paymentData is null || paymentMethodId is null)
+                            {
+                                return null;
+                            }
+
+                            string txId = paymentData.GetPaymentId();
+                            string link = GetTransactionLink(paymentMethodId, txId);
+                            var paymentMethod = entity.GetPaymentMethod(paymentMethodId);
+                            var amount = paymentData.GetValue();
+                            var rate = paymentMethod.Rate;
+                            var paid = (amount - paymentEntity.NetworkFee) * rate;
+
+                            return new ViewPaymentRequestViewModel.PaymentRequestInvoicePayment
+                            {
+                                Amount = amount,
+                                Paid = paid,
+                                ReceivedDate = paymentEntity.ReceivedTime.DateTime,
+                                PaidFormatted = _currencies.FormatCurrency(paid, blob.Currency),
+                                RateFormatted = _currencies.FormatCurrency(rate, blob.Currency),
+                                PaymentMethod = paymentMethodId.ToPrettyString(),
+                                Link = link,
+                                Id = txId,
+                                Destination = paymentData.GetDestination()
+                            };
+                        })
+                        .Where(payment => payment != null)
+                        .ToList();
+
+                    if (state.Status == InvoiceStatusLegacy.Invalid ||
+                        state.Status == InvoiceStatusLegacy.Expired && !payments.Any())
+                        return null;
+
+                    return new ViewPaymentRequestViewModel.PaymentRequestInvoice
+                    {
+                        Id = entity.Id,
+                        Amount = entity.Price,
+                        AmountFormatted = _currencies.FormatCurrency(entity.Price, blob.Currency),
+                        Currency = entity.Currency,
+                        ExpiryDate = entity.ExpirationTime.DateTime,
+                        State = state,
+                        StateFormatted = state.ToString(),
+                        Payments = payments
+                    };
+                })
+                .Where(invoice => invoice != null))
             };
         }
 

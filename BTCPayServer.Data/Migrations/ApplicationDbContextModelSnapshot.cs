@@ -4,6 +4,9 @@ using BTCPayServer.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+
+#nullable disable
 
 namespace BTCPayServer.Migrations
 {
@@ -13,17 +16,18 @@ namespace BTCPayServer.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder
-                .HasAnnotation("ProductVersion", "2.1.14-servicing-32113");
+            modelBuilder.HasAnnotation("ProductVersion", "6.0.7");
 
             modelBuilder.Entity("BTCPayServer.Data.AddressInvoiceData", b =>
                 {
                     b.Property<string>("Address")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("CreatedTime");
+                    b.Property<DateTimeOffset?>("CreatedTime")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("InvoiceDataId");
+                    b.Property<string>("InvoiceDataId")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Address");
 
@@ -35,15 +39,31 @@ namespace BTCPayServer.Migrations
             modelBuilder.Entity("BTCPayServer.Data.APIKeyData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50);
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("Label")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("StoreId")
-                        .HasMaxLength(50);
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("StoreId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("ApiKeys");
                 });
@@ -51,19 +71,25 @@ namespace BTCPayServer.Migrations
             modelBuilder.Entity("BTCPayServer.Data.AppData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("AppType");
+                    b.Property<string>("AppType")
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("Created");
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Name");
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Settings");
+                    b.Property<string>("Settings")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("StoreDataId");
+                    b.Property<string>("StoreDataId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<bool>("TagAllInvoices");
+                    b.Property<bool>("TagAllInvoices")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -75,252 +101,354 @@ namespace BTCPayServer.Migrations
             modelBuilder.Entity("BTCPayServer.Data.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<int>("AccessFailedCount");
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
 
                     b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken();
+                        .IsConcurrencyToken()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("Created")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisabledNotifications")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Email")
-                        .HasMaxLength(256);
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
 
-                    b.Property<bool>("EmailConfirmed");
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<bool>("LockoutEnabled");
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("LockoutEnd");
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedEmail")
-                        .HasMaxLength(256);
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedUserName")
-                        .HasMaxLength(256);
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("PasswordHash");
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("PhoneNumber");
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("TEXT");
 
-                    b.Property<bool>("PhoneNumberConfirmed");
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<bool>("RequiresEmailConfirmation");
+                    b.Property<bool>("RequiresEmailConfirmation")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<string>("SecurityStamp");
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("TEXT");
 
-                    b.Property<bool>("TwoFactorEnabled");
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("UserName")
-                        .HasMaxLength(256);
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedEmail")
-                        .HasName("EmailIndex");
+                        .HasDatabaseName("EmailIndex");
 
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
-                        .HasName("UserNameIndex");
+                        .HasDatabaseName("UserNameIndex");
 
-                    b.ToTable("AspNetUsers");
+                    b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("BTCPayServer.Data.BTCPayOpenIdAuthorization", b =>
+            modelBuilder.Entity("BTCPayServer.Data.CustodianAccountData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ApplicationId");
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
 
-                    b.Property<string>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .HasMaxLength(50);
-
-                    b.Property<string>("Properties");
-
-                    b.Property<string>("Scopes");
-
-                    b.Property<string>("Status")
+                    b.Property<string>("CustodianCode")
                         .IsRequired()
-                        .HasMaxLength(25);
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Subject")
-                        .HasMaxLength(450);
-
-                    b.Property<string>("Type")
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(25);
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StoreId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ApplicationId", "Status", "Subject", "Type");
+                    b.HasIndex("StoreId");
 
-                    b.ToTable("OpenIddictAuthorizations");
+                    b.ToTable("CustodianAccount");
                 });
 
-            modelBuilder.Entity("BTCPayServer.Data.BTCPayOpenIdClient", b =>
+            modelBuilder.Entity("BTCPayServer.Data.Data.PayoutProcessorData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ApplicationUserId");
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
 
-                    b.Property<string>("ClientId")
-                        .IsRequired()
-                        .HasMaxLength(100);
+                    b.Property<string>("PaymentMethod")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ClientSecret");
+                    b.Property<string>("Processor")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .HasMaxLength(50);
+                    b.Property<string>("StoreId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ConsentType");
+                    b.HasKey("Id");
 
-                    b.Property<string>("DisplayName");
+                    b.HasIndex("StoreId");
 
-                    b.Property<string>("Permissions");
+                    b.ToTable("PayoutProcessors");
+                });
 
-                    b.Property<string>("PostLogoutRedirectUris");
+            modelBuilder.Entity("BTCPayServer.Data.Fido2Credential", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Properties");
+                    b.Property<string>("ApplicationUserId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("RedirectUris");
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
 
-                    b.Property<string>("Requirements");
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(25);
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ApplicationUserId");
 
-                    b.HasIndex("ClientId")
-                        .IsUnique();
-
-                    b.ToTable("OpenIddictApplications");
-                });
-
-            modelBuilder.Entity("BTCPayServer.Data.BTCPayOpenIdToken", b =>
-                {
-                    b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
-
-                    b.Property<string>("ApplicationId");
-
-                    b.Property<string>("AuthorizationId");
-
-                    b.Property<string>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .HasMaxLength(50);
-
-                    b.Property<DateTimeOffset?>("CreationDate");
-
-                    b.Property<DateTimeOffset?>("ExpirationDate");
-
-                    b.Property<string>("Payload");
-
-                    b.Property<string>("Properties");
-
-                    b.Property<string>("ReferenceId")
-                        .HasMaxLength(100);
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(25);
-
-                    b.Property<string>("Subject")
-                        .HasMaxLength(450);
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(25);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AuthorizationId");
-
-                    b.HasIndex("ReferenceId")
-                        .IsUnique();
-
-                    b.HasIndex("ApplicationId", "Status", "Subject", "Type");
-
-                    b.ToTable("OpenIddictTokens");
-                });
-
-            modelBuilder.Entity("BTCPayServer.Data.HistoricalAddressInvoiceData", b =>
-                {
-                    b.Property<string>("InvoiceDataId");
-
-                    b.Property<string>("Address");
-
-                    b.Property<DateTimeOffset>("Assigned");
-
-                    b.Property<string>("CryptoCode");
-
-                    b.Property<DateTimeOffset?>("UnAssigned");
-
-                    b.HasKey("InvoiceDataId", "Address");
-
-                    b.ToTable("HistoricalAddressInvoices");
+                    b.ToTable("Fido2Credentials");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.InvoiceData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<byte[]>("Blob");
+                    b.Property<bool>("Archived")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("Created");
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
 
-                    b.Property<string>("CustomerEmail");
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ExceptionStatus");
+                    b.Property<string>("CurrentRefundId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ItemCode");
+                    b.Property<string>("CustomerEmail")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("OrderId");
+                    b.Property<string>("ExceptionStatus")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Status");
+                    b.Property<string>("ItemCode")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("StoreDataId");
+                    b.Property<string>("OrderId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StoreDataId")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Created");
+
+                    b.HasIndex("OrderId");
+
                     b.HasIndex("StoreDataId");
+
+                    b.HasIndex("Id", "CurrentRefundId");
 
                     b.ToTable("Invoices");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.InvoiceEventData", b =>
                 {
-                    b.Property<string>("InvoiceDataId");
+                    b.Property<string>("InvoiceDataId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("UniqueId");
+                    b.Property<string>("UniqueId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Message");
+                    b.Property<string>("Message")
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("Timestamp");
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("InvoiceDataId", "UniqueId");
 
                     b.ToTable("InvoiceEvents");
                 });
 
+            modelBuilder.Entity("BTCPayServer.Data.InvoiceSearchData", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasAnnotation("MySql:ValueGeneratedOnAdd", true)
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.SerialColumn)
+                        .HasAnnotation("Sqlite:Autoincrement", true);
+
+                    b.Property<string>("InvoiceDataId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceDataId");
+
+                    b.HasIndex("Value");
+
+                    b.ToTable("InvoiceSearches");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.InvoiceWebhookDeliveryData", b =>
+                {
+                    b.Property<string>("InvoiceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeliveryId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("InvoiceId", "DeliveryId");
+
+                    b.HasIndex("DeliveryId")
+                        .IsUnique();
+
+                    b.HasIndex("InvoiceId")
+                        .IsUnique();
+
+                    b.ToTable("InvoiceWebhookDeliveries");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.LightningAddressData", b =>
+                {
+                    b.Property<string>("Username")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("StoreDataId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Username");
+
+                    b.HasIndex("StoreDataId");
+
+                    b.ToTable("LightningAddresses");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.NotificationData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NotificationType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Seen")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationUserId");
+
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.OffchainTransactionData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OffchainTransactions");
+                });
+
             modelBuilder.Entity("BTCPayServer.Data.PairedSINData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Label");
+                    b.Property<string>("Label")
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("PairingTime");
+                    b.Property<DateTimeOffset>("PairingTime")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("SIN");
+                    b.Property<string>("SIN")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("StoreDataId");
+                    b.Property<string>("StoreDataId")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -334,37 +462,58 @@ namespace BTCPayServer.Migrations
             modelBuilder.Entity("BTCPayServer.Data.PairingCodeData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("DateCreated");
+                    b.Property<DateTime>("DateCreated")
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("Expiration");
+                    b.Property<DateTimeOffset>("Expiration")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Facade");
+                    b.Property<string>("Facade")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Label");
+                    b.Property<string>("Label")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("SIN");
+                    b.Property<string>("SIN")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("StoreDataId");
+                    b.Property<string>("StoreDataId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("TokenValue");
+                    b.Property<string>("TokenValue")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.ToTable("PairingCodes");
                 });
 
+            modelBuilder.Entity("BTCPayServer.Data.PayjoinLock", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PayjoinLocks");
+                });
+
             modelBuilder.Entity("BTCPayServer.Data.PaymentData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<bool>("Accounted");
+                    b.Property<bool>("Accounted")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<byte[]>("Blob");
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
 
-                    b.Property<string>("InvoiceDataId");
+                    b.Property<string>("InvoiceDataId")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -376,17 +525,24 @@ namespace BTCPayServer.Migrations
             modelBuilder.Entity("BTCPayServer.Data.PaymentRequestData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<byte[]>("Blob");
+                    b.Property<bool>("Archived")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
 
                     b.Property<DateTimeOffset>("Created")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
                         .HasDefaultValue(new DateTimeOffset(new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)));
 
-                    b.Property<int>("Status");
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<string>("StoreDataId");
+                    b.Property<string>("StoreDataId")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -397,37 +553,135 @@ namespace BTCPayServer.Migrations
                     b.ToTable("PaymentRequests");
                 });
 
+            modelBuilder.Entity("BTCPayServer.Data.PayoutData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
+
+                    b.Property<DateTimeOffset>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Destination")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentMethodId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Proof")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("PullPaymentDataId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StoreDataId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PullPaymentDataId");
+
+                    b.HasIndex("State");
+
+                    b.HasIndex("StoreDataId");
+
+                    b.HasIndex("Destination", "State");
+
+                    b.ToTable("Payouts");
+                });
+
             modelBuilder.Entity("BTCPayServer.Data.PendingInvoiceData", b =>
                 {
-                    b.Property<string>("Id");
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.ToTable("PendingInvoices");
                 });
 
-            modelBuilder.Entity("BTCPayServer.Data.RefundAddressesData", b =>
+            modelBuilder.Entity("BTCPayServer.Data.PlannedTransaction", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
 
-                    b.Property<byte[]>("Blob");
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
 
-                    b.Property<string>("InvoiceDataId");
+                    b.Property<DateTimeOffset>("BroadcastAt")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("InvoiceDataId");
+                    b.ToTable("PlannedTransactions");
+                });
 
-                    b.ToTable("RefundAddresses");
+            modelBuilder.Entity("BTCPayServer.Data.PullPaymentData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Archived")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
+
+                    b.Property<DateTimeOffset?>("EndDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("Period")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("StartDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StoreId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StoreId");
+
+                    b.ToTable("PullPayments");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.RefundData", b =>
+                {
+                    b.Property<string>("InvoiceDataId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PullPaymentDataId")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("InvoiceDataId", "PullPaymentDataId");
+
+                    b.HasIndex("PullPaymentDataId");
+
+                    b.ToTable("Refunds");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.SettingData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Value");
+                    b.Property<string>("Value")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -437,23 +691,31 @@ namespace BTCPayServer.Migrations
             modelBuilder.Entity("BTCPayServer.Data.StoreData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("DefaultCrypto");
+                    b.Property<string>("DefaultCrypto")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("DerivationStrategies");
+                    b.Property<string>("DerivationStrategies")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("DerivationStrategy");
+                    b.Property<string>("DerivationStrategy")
+                        .HasColumnType("TEXT");
 
-                    b.Property<int>("SpeedPolicy");
+                    b.Property<int>("SpeedPolicy")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<byte[]>("StoreBlob");
+                    b.Property<byte[]>("StoreBlob")
+                        .HasColumnType("BLOB");
 
-                    b.Property<byte[]>("StoreCertificate");
+                    b.Property<byte[]>("StoreCertificate")
+                        .HasColumnType("BLOB");
 
-                    b.Property<string>("StoreName");
+                    b.Property<string>("StoreName")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("StoreWebsite");
+                    b.Property<string>("StoreWebsite")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -463,15 +725,20 @@ namespace BTCPayServer.Migrations
             modelBuilder.Entity("BTCPayServer.Data.StoredFile", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ApplicationUserId");
+                    b.Property<string>("ApplicationUserId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("FileName");
+                    b.Property<string>("FileName")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("StorageFileName");
+                    b.Property<string>("StorageFileName")
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("Timestamp");
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -480,25 +747,66 @@ namespace BTCPayServer.Migrations
                     b.ToTable("Files");
                 });
 
+            modelBuilder.Entity("BTCPayServer.Data.StoreSettingData", b =>
+                {
+                    b.Property<string>("StoreId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("StoreId", "Name");
+
+                    b.ToTable("StoreSettings");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.StoreWebhookData", b =>
+                {
+                    b.Property<string>("StoreId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WebhookId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("StoreId", "WebhookId");
+
+                    b.HasIndex("StoreId")
+                        .IsUnique();
+
+                    b.HasIndex("WebhookId")
+                        .IsUnique();
+
+                    b.ToTable("StoreWebhooks");
+                });
+
             modelBuilder.Entity("BTCPayServer.Data.U2FDevice", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ApplicationUserId");
+                    b.Property<string>("ApplicationUserId")
+                        .HasColumnType("TEXT");
 
                     b.Property<byte[]>("AttestationCert")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasColumnType("BLOB");
 
-                    b.Property<int>("Counter");
+                    b.Property<int>("Counter")
+                        .HasColumnType("INTEGER");
 
                     b.Property<byte[]>("KeyHandle")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasColumnType("BLOB");
 
-                    b.Property<string>("Name");
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
 
                     b.Property<byte[]>("PublicKey")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasColumnType("BLOB");
 
                     b.HasKey("Id");
 
@@ -509,11 +817,14 @@ namespace BTCPayServer.Migrations
 
             modelBuilder.Entity("BTCPayServer.Data.UserStore", b =>
                 {
-                    b.Property<string>("ApplicationUserId");
+                    b.Property<string>("ApplicationUserId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("StoreDataId");
+                    b.Property<string>("StoreDataId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Role");
+                    b.Property<string>("Role")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("ApplicationUserId", "StoreDataId");
 
@@ -525,164 +836,247 @@ namespace BTCPayServer.Migrations
             modelBuilder.Entity("BTCPayServer.Data.WalletData", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
-                    b.Property<byte[]>("Blob");
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
 
                     b.HasKey("Id");
 
                     b.ToTable("Wallets");
                 });
 
+            modelBuilder.Entity("BTCPayServer.Data.WalletObjectData", b =>
+                {
+                    b.Property<string>("WalletId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Type")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Data")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("WalletId", "Type", "Id");
+
+                    b.ToTable("WalletObjects");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.WalletObjectLinkData", b =>
+                {
+                    b.Property<string>("WalletId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParentType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChildType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChildId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Data")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("WalletId", "ParentType", "ParentId", "ChildType", "ChildId");
+
+                    b.HasIndex("WalletId", "ChildType", "ChildId");
+
+                    b.ToTable("WalletObjectLinks");
+                });
+
             modelBuilder.Entity("BTCPayServer.Data.WalletTransactionData", b =>
                 {
-                    b.Property<string>("WalletDataId");
+                    b.Property<string>("WalletDataId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("TransactionId");
+                    b.Property<string>("TransactionId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<byte[]>("Blob");
+                    b.Property<byte[]>("Blob")
+                        .HasColumnType("BLOB");
 
-                    b.Property<string>("Labels");
+                    b.Property<string>("Labels")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("WalletDataId", "TransactionId");
 
                     b.ToTable("WalletTransactions");
                 });
 
+            modelBuilder.Entity("BTCPayServer.Data.WebhookData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(25)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Blob")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Webhooks");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.WebhookDeliveryData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(25)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Blob")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WebhookId")
+                        .IsRequired()
+                        .HasMaxLength(25)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WebhookId");
+
+                    b.ToTable("WebhookDeliveries");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken();
+                        .IsConcurrencyToken()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
-                        .HasMaxLength(256);
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedName")
-                        .HasMaxLength(256);
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName")
                         .IsUnique()
-                        .HasName("RoleNameIndex");
+                        .HasDatabaseName("RoleNameIndex");
 
-                    b.ToTable("AspNetRoles");
+                    b.ToTable("AspNetRoles", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.Property<int>("Id")
-                        .ValueGeneratedOnAdd();
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
 
-                    b.Property<string>("ClaimType");
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ClaimValue");
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("RoleId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("AspNetRoleClaims");
+                    b.ToTable("AspNetRoleClaims", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
                     b.Property<int>("Id")
-                        .ValueGeneratedOnAdd();
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
 
-                    b.Property<string>("ClaimType");
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ClaimValue");
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("UserId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserClaims");
+                    b.ToTable("AspNetUserClaims", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.Property<string>("LoginProvider");
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ProviderKey");
+                    b.Property<string>("ProviderKey")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("ProviderDisplayName");
+                    b.Property<string>("ProviderDisplayName")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("UserId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("LoginProvider", "ProviderKey");
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserLogins");
+                    b.ToTable("AspNetUserLogins", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
                 {
-                    b.Property<string>("UserId");
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("RoleId");
+                    b.Property<string>("RoleId")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("UserId", "RoleId");
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("AspNetUserRoles");
+                    b.ToTable("AspNetUserRoles", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.Property<string>("UserId");
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("LoginProvider");
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Name");
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("Value");
+                    b.Property<string>("Value")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("UserId", "LoginProvider", "Name");
 
-                    b.ToTable("AspNetUserTokens");
-                });
-
-            modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictScope<string>", b =>
-                {
-                    b.Property<string>("Id")
-                        .ValueGeneratedOnAdd();
-
-                    b.Property<string>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .HasMaxLength(50);
-
-                    b.Property<string>("Description");
-
-                    b.Property<string>("DisplayName");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200);
-
-                    b.Property<string>("Properties");
-
-                    b.Property<string>("Resources");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("OpenIddictScopes");
+                    b.ToTable("AspNetUserTokens", (string)null);
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.AddressInvoiceData", b =>
@@ -691,6 +1085,8 @@ namespace BTCPayServer.Migrations
                         .WithMany("AddressInvoices")
                         .HasForeignKey("InvoiceDataId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("InvoiceData");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.APIKeyData", b =>
@@ -699,6 +1095,15 @@ namespace BTCPayServer.Migrations
                         .WithMany("APIKeys")
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("BTCPayServer.Data.ApplicationUser", "User")
+                        .WithMany("APIKeys")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("StoreData");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.AppData", b =>
@@ -707,39 +1112,39 @@ namespace BTCPayServer.Migrations
                         .WithMany("Apps")
                         .HasForeignKey("StoreDataId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("StoreData");
                 });
 
-            modelBuilder.Entity("BTCPayServer.Data.BTCPayOpenIdAuthorization", b =>
+            modelBuilder.Entity("BTCPayServer.Data.CustodianAccountData", b =>
                 {
-                    b.HasOne("BTCPayServer.Data.BTCPayOpenIdClient", "Application")
-                        .WithMany("Authorizations")
-                        .HasForeignKey("ApplicationId");
+                    b.HasOne("BTCPayServer.Data.StoreData", "StoreData")
+                        .WithMany("CustodianAccounts")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StoreData");
                 });
 
-            modelBuilder.Entity("BTCPayServer.Data.BTCPayOpenIdClient", b =>
+            modelBuilder.Entity("BTCPayServer.Data.Data.PayoutProcessorData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.StoreData", "Store")
+                        .WithMany("PayoutProcessors")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.Fido2Credential", b =>
                 {
                     b.HasOne("BTCPayServer.Data.ApplicationUser", "ApplicationUser")
-                        .WithMany("OpenIdClients")
-                        .HasForeignKey("ApplicationUserId");
-                });
-
-            modelBuilder.Entity("BTCPayServer.Data.BTCPayOpenIdToken", b =>
-                {
-                    b.HasOne("BTCPayServer.Data.BTCPayOpenIdClient", "Application")
-                        .WithMany("Tokens")
-                        .HasForeignKey("ApplicationId");
-
-                    b.HasOne("BTCPayServer.Data.BTCPayOpenIdAuthorization", "Authorization")
-                        .WithMany("Tokens")
-                        .HasForeignKey("AuthorizationId");
-                });
-
-            modelBuilder.Entity("BTCPayServer.Data.HistoricalAddressInvoiceData", b =>
-                {
-                    b.HasOne("BTCPayServer.Data.InvoiceData", "InvoiceData")
-                        .WithMany("HistoricalAddressInvoices")
-                        .HasForeignKey("InvoiceDataId")
+                        .WithMany("Fido2Credentials")
+                        .HasForeignKey("ApplicationUserId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("ApplicationUser");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.InvoiceData", b =>
@@ -748,6 +1153,14 @@ namespace BTCPayServer.Migrations
                         .WithMany("Invoices")
                         .HasForeignKey("StoreDataId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("BTCPayServer.Data.RefundData", "CurrentRefund")
+                        .WithMany()
+                        .HasForeignKey("Id", "CurrentRefundId");
+
+                    b.Navigation("CurrentRefund");
+
+                    b.Navigation("StoreData");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.InvoiceEventData", b =>
@@ -755,7 +1168,61 @@ namespace BTCPayServer.Migrations
                     b.HasOne("BTCPayServer.Data.InvoiceData", "InvoiceData")
                         .WithMany("Events")
                         .HasForeignKey("InvoiceDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InvoiceData");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.InvoiceSearchData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.InvoiceData", "InvoiceData")
+                        .WithMany("InvoiceSearchData")
+                        .HasForeignKey("InvoiceDataId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("InvoiceData");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.InvoiceWebhookDeliveryData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.WebhookDeliveryData", "Delivery")
+                        .WithOne()
+                        .HasForeignKey("BTCPayServer.Data.InvoiceWebhookDeliveryData", "DeliveryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BTCPayServer.Data.InvoiceData", "Invoice")
+                        .WithOne()
+                        .HasForeignKey("BTCPayServer.Data.InvoiceWebhookDeliveryData", "InvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Delivery");
+
+                    b.Navigation("Invoice");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.LightningAddressData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.StoreData", "Store")
+                        .WithMany("LightningAddresses")
+                        .HasForeignKey("StoreDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.NotificationData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.ApplicationUser", "ApplicationUser")
+                        .WithMany("Notifications")
+                        .HasForeignKey("ApplicationUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApplicationUser");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.PairedSINData", b =>
@@ -764,6 +1231,8 @@ namespace BTCPayServer.Migrations
                         .WithMany("PairedSINs")
                         .HasForeignKey("StoreDataId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("StoreData");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.PaymentData", b =>
@@ -772,6 +1241,8 @@ namespace BTCPayServer.Migrations
                         .WithMany("Payments")
                         .HasForeignKey("InvoiceDataId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("InvoiceData");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.PaymentRequestData", b =>
@@ -780,6 +1251,25 @@ namespace BTCPayServer.Migrations
                         .WithMany("PaymentRequests")
                         .HasForeignKey("StoreDataId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("StoreData");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.PayoutData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.PullPaymentData", "PullPaymentData")
+                        .WithMany("Payouts")
+                        .HasForeignKey("PullPaymentDataId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("BTCPayServer.Data.StoreData", "StoreData")
+                        .WithMany("Payouts")
+                        .HasForeignKey("StoreDataId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("PullPaymentData");
+
+                    b.Navigation("StoreData");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.PendingInvoiceData", b =>
@@ -787,15 +1277,39 @@ namespace BTCPayServer.Migrations
                     b.HasOne("BTCPayServer.Data.InvoiceData", "InvoiceData")
                         .WithMany("PendingInvoices")
                         .HasForeignKey("Id")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InvoiceData");
                 });
 
-            modelBuilder.Entity("BTCPayServer.Data.RefundAddressesData", b =>
+            modelBuilder.Entity("BTCPayServer.Data.PullPaymentData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.StoreData", "StoreData")
+                        .WithMany("PullPayments")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("StoreData");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.RefundData", b =>
                 {
                     b.HasOne("BTCPayServer.Data.InvoiceData", "InvoiceData")
-                        .WithMany("RefundAddresses")
+                        .WithMany("Refunds")
                         .HasForeignKey("InvoiceDataId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BTCPayServer.Data.PullPaymentData", "PullPaymentData")
+                        .WithMany()
+                        .HasForeignKey("PullPaymentDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InvoiceData");
+
+                    b.Navigation("PullPaymentData");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.StoredFile", b =>
@@ -803,13 +1317,48 @@ namespace BTCPayServer.Migrations
                     b.HasOne("BTCPayServer.Data.ApplicationUser", "ApplicationUser")
                         .WithMany("StoredFiles")
                         .HasForeignKey("ApplicationUserId");
+
+                    b.Navigation("ApplicationUser");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.StoreSettingData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.StoreData", "Store")
+                        .WithMany("Settings")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.StoreWebhookData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.StoreData", "Store")
+                        .WithOne()
+                        .HasForeignKey("BTCPayServer.Data.StoreWebhookData", "StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BTCPayServer.Data.WebhookData", "Webhook")
+                        .WithOne()
+                        .HasForeignKey("BTCPayServer.Data.StoreWebhookData", "WebhookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+
+                    b.Navigation("Webhook");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.U2FDevice", b =>
                 {
                     b.HasOne("BTCPayServer.Data.ApplicationUser", "ApplicationUser")
                         .WithMany("U2FDevices")
-                        .HasForeignKey("ApplicationUserId");
+                        .HasForeignKey("ApplicationUserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("ApplicationUser");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.UserStore", b =>
@@ -817,12 +1366,37 @@ namespace BTCPayServer.Migrations
                     b.HasOne("BTCPayServer.Data.ApplicationUser", "ApplicationUser")
                         .WithMany("UserStores")
                         .HasForeignKey("ApplicationUserId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("BTCPayServer.Data.StoreData", "StoreData")
                         .WithMany("UserStores")
                         .HasForeignKey("StoreDataId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApplicationUser");
+
+                    b.Navigation("StoreData");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.WalletObjectLinkData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.WalletObjectData", "Child")
+                        .WithMany("ParentLinks")
+                        .HasForeignKey("WalletId", "ChildType", "ChildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BTCPayServer.Data.WalletObjectData", "Parent")
+                        .WithMany("ChildLinks")
+                        .HasForeignKey("WalletId", "ParentType", "ParentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Child");
+
+                    b.Navigation("Parent");
                 });
 
             modelBuilder.Entity("BTCPayServer.Data.WalletTransactionData", b =>
@@ -830,52 +1404,153 @@ namespace BTCPayServer.Migrations
                     b.HasOne("BTCPayServer.Data.WalletData", "WalletData")
                         .WithMany("WalletTransactions")
                         .HasForeignKey("WalletDataId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WalletData");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.WebhookDeliveryData", b =>
+                {
+                    b.HasOne("BTCPayServer.Data.WebhookData", "Webhook")
+                        .WithMany("Deliveries")
+                        .HasForeignKey("WebhookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Webhook");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole")
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("BTCPayServer.Data.ApplicationUser")
+                    b.HasOne("BTCPayServer.Data.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("BTCPayServer.Data.ApplicationUser")
+                    b.HasOne("BTCPayServer.Data.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole")
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.HasOne("BTCPayServer.Data.ApplicationUser")
-                        .WithMany()
+                    b.HasOne("BTCPayServer.Data.ApplicationUser", null)
+                        .WithMany("UserRoles")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("BTCPayServer.Data.ApplicationUser")
+                    b.HasOne("BTCPayServer.Data.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.ApplicationUser", b =>
+                {
+                    b.Navigation("APIKeys");
+
+                    b.Navigation("Fido2Credentials");
+
+                    b.Navigation("Notifications");
+
+                    b.Navigation("StoredFiles");
+
+                    b.Navigation("U2FDevices");
+
+                    b.Navigation("UserRoles");
+
+                    b.Navigation("UserStores");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.InvoiceData", b =>
+                {
+                    b.Navigation("AddressInvoices");
+
+                    b.Navigation("Events");
+
+                    b.Navigation("InvoiceSearchData");
+
+                    b.Navigation("Payments");
+
+                    b.Navigation("PendingInvoices");
+
+                    b.Navigation("Refunds");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.PullPaymentData", b =>
+                {
+                    b.Navigation("Payouts");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.StoreData", b =>
+                {
+                    b.Navigation("APIKeys");
+
+                    b.Navigation("Apps");
+
+                    b.Navigation("CustodianAccounts");
+
+                    b.Navigation("Invoices");
+
+                    b.Navigation("LightningAddresses");
+
+                    b.Navigation("PairedSINs");
+
+                    b.Navigation("PaymentRequests");
+
+                    b.Navigation("PayoutProcessors");
+
+                    b.Navigation("Payouts");
+
+                    b.Navigation("PullPayments");
+
+                    b.Navigation("Settings");
+
+                    b.Navigation("UserStores");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.WalletData", b =>
+                {
+                    b.Navigation("WalletTransactions");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.WalletObjectData", b =>
+                {
+                    b.Navigation("ChildLinks");
+
+                    b.Navigation("ParentLinks");
+                });
+
+            modelBuilder.Entity("BTCPayServer.Data.WebhookData", b =>
+                {
+                    b.Navigation("Deliveries");
                 });
 #pragma warning restore 612, 618
         }

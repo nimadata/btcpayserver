@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
 using BTCPayServer.Payments;
+using BTCPayServer.Payments.Bitcoin;
 using BTCPayServer.Services.Invoices;
 using NBitcoin;
 using Newtonsoft.Json;
@@ -21,14 +21,19 @@ namespace BTCPayServer.Models.InvoicingModels
         public string TransactionLink { get; set; }
 
         public bool Replaced { get; set; }
+        public BitcoinLikePaymentData CryptoPaymentData { get; set; }
+        public string AdditionalInformation { get; set; }
+
+        public decimal NetworkFee { get; set; }
     }
 
     public class OffChainPaymentViewModel
     {
         public string Crypto { get; set; }
         public string BOLT11 { get; set; }
+        public PaymentType Type { get; set; }
     }
-    
+
     public class InvoiceDetailsModel
     {
         public class CryptoPayment
@@ -42,6 +47,8 @@ namespace BTCPayServer.Models.InvoicingModels
             public string Overpaid { get; set; }
             [JsonIgnore]
             public PaymentMethodId PaymentMethodId { get; set; }
+
+            public PaymentMethod PaymentMethodRaw { get; set; }
         }
         public class AddressModel
         {
@@ -59,7 +66,7 @@ namespace BTCPayServer.Models.InvoicingModels
             get; set;
         } = new List<CryptoPayment>();
 
-        public string State
+        public InvoiceState State
         {
             get; set;
         }
@@ -73,24 +80,17 @@ namespace BTCPayServer.Models.InvoicingModels
         {
             get; set;
         }
-
-        public string OrderId
-        {
-            get; set;
-        }
         public string RefundEmail
         {
             get;
             set;
         }
+
+        public List<StoreViewModels.DeliveryViewModel> Deliveries { get; set; } = new List<StoreViewModels.DeliveryViewModel>();
         public string TaxIncluded { get; set; }
-        public BuyerInformation BuyerInformation
-        {
-            get;
-            set;
-        }
 
         public string TransactionSpeed { get; set; }
+        public string StoreId { get; set; }
         public object StoreName
         {
             get;
@@ -101,6 +101,13 @@ namespace BTCPayServer.Models.InvoicingModels
             get;
             set;
         }
+
+        public string PaymentRequestLink
+        {
+            get;
+            set;
+        }
+
         public string NotificationUrl
         {
             get;
@@ -113,16 +120,20 @@ namespace BTCPayServer.Models.InvoicingModels
             get;
             set;
         }
-        public ProductInformation ProductInformation
-        {
-            get;
-            internal set;
-        }
-        public AddressModel[] Addresses { get; set; }
+        public InvoiceMetadata TypedMetadata { get; set; }
         public DateTimeOffset MonitoringDate { get; internal set; }
         public List<Data.InvoiceEventData> Events { get; internal set; }
         public string NotificationEmail { get; internal set; }
         public Dictionary<string, object> PosData { get; set; }
         public List<PaymentEntity> Payments { get; set; }
+        public bool Archived { get; set; }
+        public bool CanRefund { get; set; }
+        public bool ShowCheckout { get; set; }
+        public bool CanMarkSettled { get; set; }
+        public bool CanMarkInvalid { get; set; }
+        public bool CanMarkStatus => CanMarkSettled || CanMarkInvalid;
+        public List<RefundData> Refunds { get; set; }
+        public bool ShowReceipt { get; set; }
+        public bool Overpaid { get; set; } = false;
     }
 }

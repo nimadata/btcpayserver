@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace BTCPayServer.Controllers
@@ -21,12 +19,11 @@ namespace BTCPayServer.Controllers
         }
         public static async Task<Macaroons> GetFromDirectoryAsync(string directoryPath)
         {
-            if (directoryPath == null)
-                throw new ArgumentNullException(nameof(directoryPath));
+            ArgumentNullException.ThrowIfNull(directoryPath);
             Macaroons macaroons = new Macaroons();
             if (!Directory.Exists(directoryPath))
                 throw new DirectoryNotFoundException("Macaroons directory not found");
-            foreach(var file in Directory.GetFiles(directoryPath, "*.macaroon"))
+            foreach (var file in Directory.GetFiles(directoryPath, "*.macaroon"))
             {
                 try
                 {

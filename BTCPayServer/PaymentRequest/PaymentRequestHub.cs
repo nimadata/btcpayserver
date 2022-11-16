@@ -1,27 +1,27 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Threading.Tasks;
+using BTCPayServer.Abstractions.Extensions;
 using BTCPayServer.Controllers;
+using BTCPayServer.Data;
 using BTCPayServer.Events;
 using BTCPayServer.HostedServices;
 using BTCPayServer.Logging;
-using BTCPayServer.Payments;
 using BTCPayServer.Services.PaymentRequests;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
-using BTCPayServer.Data;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
+using PaymentRequestData = BTCPayServer.Client.Models.PaymentRequestData;
 
 namespace BTCPayServer.PaymentRequest
 {
     public class PaymentRequestHub : Hub
     {
-        private readonly PaymentRequestController _PaymentRequestController;
+        private readonly UIPaymentRequestController _PaymentRequestController;
         public const string InvoiceCreated = "InvoiceCreated";
         public const string PaymentReceived = "PaymentReceived";
         public const string InfoUpdated = "InfoUpdated";
@@ -29,36 +29,40 @@ namespace BTCPayServer.PaymentRequest
         public const string CancelInvoiceError = "CancelInvoiceError";
         public const string InvoiceCancelled = "InvoiceCancelled";
 
-        public PaymentRequestHub(PaymentRequestController paymentRequestController)
+        public PaymentRequestHub(UIPaymentRequestController paymentRequestController)
         {
             _PaymentRequestController = paymentRequestController;
         }
 
-        public async Task ListenToPaymentRequest(string paymentRequestId)
+        public async Task ListenToPaymentRequest(string prId)
         {
             if (Context.Items.ContainsKey("pr-id"))
             {
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, Context.Items["pr-id"].ToString());
                 Context.Items.Remove("pr-id");
             }
-
-            Context.Items.Add("pr-id", paymentRequestId);
-            await Groups.AddToGroupAsync(Context.ConnectionId, paymentRequestId);
+            if (prId != null)
+            {
+                Context.Items.Add("pr-id", prId);
+                await Groups.AddToGroupAsync(Context.ConnectionId, prId);
+            }
         }
 
 
-        public async Task Pay(decimal? amount = null)
+        public async Task Pay(string prId, decimal? amount = null)
         {
+            if (prId is null)
+                return;
             _PaymentRequestController.ControllerContext.HttpContext = Context.GetHttpContext();
             var result =
-                await _PaymentRequestController.PayPaymentRequest(Context.Items["pr-id"].ToString(), false, amount);
+                await _PaymentRequestController.PayPaymentRequest(prId, false, amount);
             switch (result)
             {
                 case OkObjectResult okObjectResult:
-                    await Clients.Caller.SendCoreAsync(InvoiceCreated, new[] {okObjectResult.Value.ToString()});
+                    await Clients.Caller.SendCoreAsync(InvoiceCreated, new[] { okObjectResult.Value.ToString() });
                     break;
                 case ObjectResult objectResult:
-                    await Clients.Caller.SendCoreAsync(InvoiceError, new[] {objectResult.Value});
+                    await Clients.Caller.SendCoreAsync(InvoiceError, new[] { objectResult.Value });
                     break;
                 default:
                     await Clients.Caller.SendCoreAsync(InvoiceError, System.Array.Empty<object>());
@@ -66,17 +70,19 @@ namespace BTCPayServer.PaymentRequest
             }
         }
 
-        public async Task CancelUnpaidPendingInvoice()
+        public async Task CancelUnpaidPendingInvoice(string prId)
         {
+            if (prId is null)
+                return;
             _PaymentRequestController.ControllerContext.HttpContext = Context.GetHttpContext();
             var result =
-                await _PaymentRequestController.CancelUnpaidPendingInvoice(Context.Items["pr-id"].ToString(), false);
+                await _PaymentRequestController.CancelUnpaidPendingInvoice(prId, false);
             switch (result)
             {
                 case OkObjectResult okObjectResult:
-                    await Clients.Group(Context.Items["pr-id"].ToString()).SendCoreAsync(InvoiceCancelled, System.Array.Empty<object>());
+                    await Clients.Group(prId).SendCoreAsync(InvoiceCancelled, System.Array.Empty<object>());
                     break;
-                    
+
                 default:
                     await Clients.Caller.SendCoreAsync(CancelInvoiceError, System.Array.Empty<object>());
                     break;
@@ -104,7 +110,8 @@ namespace BTCPayServer.PaymentRequest
         public PaymentRequestStreamer(EventAggregator eventAggregator,
             IHubContext<PaymentRequestHub> hubContext,
             PaymentRequestRepository paymentRequestRepository,
-            PaymentRequestService paymentRequestService) : base(eventAggregator)
+            PaymentRequestService paymentRequestService,
+            Logs logs) : base(eventAggregator, logs)
         {
             _HubContext = hubContext;
             _PaymentRequestRepository = paymentRequestRepository;
@@ -121,12 +128,11 @@ namespace BTCPayServer.PaymentRequest
         private async Task CheckingPendingPayments(CancellationToken cancellationToken)
         {
             Logs.PayServer.LogInformation("Starting payment request expiration watcher");
-            var (total, items) = await _PaymentRequestRepository.FindPaymentRequests(new PaymentRequestQuery()
+            var items = await _PaymentRequestRepository.FindPaymentRequests(new PaymentRequestQuery()
             {
-                Status = new[] {PaymentRequestData.PaymentRequestStatus.Pending}
+                Status = new[] { Client.Models.PaymentRequestData.PaymentRequestStatus.Pending }
             }, cancellationToken);
-
-            Logs.PayServer.LogInformation($"{total} pending payment requests being checked since last run");
+            Logs.PayServer.LogInformation($"{items.Length} pending payment requests being checked since last run");
             await Task.WhenAll(items.Select(i => _PaymentRequestService.UpdatePaymentRequestStateIfNeeded(i))
                 .ToArray());
         }
@@ -139,7 +145,7 @@ namespace BTCPayServer.PaymentRequest
             await (_CheckingPendingPayments ?? Task.CompletedTask);
         }
 
-        protected override void SubscibeToEvents()
+        protected override void SubscribeToEvents()
         {
             Subscribe<InvoiceEvent>();
             Subscribe<PaymentRequestUpdated>();
@@ -151,17 +157,20 @@ namespace BTCPayServer.PaymentRequest
             {
                 foreach (var paymentId in PaymentRequestRepository.GetPaymentIdsFromInternalTags(invoiceEvent.Invoice))
                 {
-                    if (invoiceEvent.Name == InvoiceEvent.ReceivedPayment)
+                    if (invoiceEvent.Name == InvoiceEvent.ReceivedPayment || invoiceEvent.Name == InvoiceEvent.MarkedCompleted || invoiceEvent.Name == InvoiceEvent.MarkedInvalid)
                     {
                         await _PaymentRequestService.UpdatePaymentRequestStateIfNeeded(paymentId);
-                        var data = invoiceEvent.Payment.GetCryptoPaymentData();
-                        await _HubContext.Clients.Group(paymentId).SendCoreAsync(PaymentRequestHub.PaymentReceived,
-                            new object[]
-                            {
-                            data.GetValue(),
-                            invoiceEvent.Payment.GetCryptoCode(),
-                            invoiceEvent.Payment.GetPaymentMethodId().PaymentType.ToString()
-                            });
+                        var data = invoiceEvent.Payment?.GetCryptoPaymentData();
+                        if (data != null)
+                        {
+                            await _HubContext.Clients.Group(paymentId).SendCoreAsync(PaymentRequestHub.PaymentReceived,
+                                new object[]
+                                {
+                                    data.GetValue(),
+                                    invoiceEvent.Payment.GetCryptoCode(),
+                                    invoiceEvent.Payment.GetPaymentMethodId()?.PaymentType?.ToString()
+                                }, cancellationToken);
+                        }
                     }
 
                     await InfoUpdated(paymentId);
@@ -169,15 +178,17 @@ namespace BTCPayServer.PaymentRequest
             }
             else if (evt is PaymentRequestUpdated updated)
             {
+                await _PaymentRequestService.UpdatePaymentRequestStateIfNeeded(updated.PaymentRequestId);
                 await InfoUpdated(updated.PaymentRequestId);
 
                 var expiry = updated.Data.GetBlob().ExpiryDate;
-                if (updated.Data.Status == PaymentRequestData.PaymentRequestStatus.Pending &&
+                if (updated.Data.Status ==
+                    PaymentRequestData.PaymentRequestStatus.Pending &&
                     expiry.HasValue)
                 {
                     QueueExpiryTask(
                         updated.PaymentRequestId,
-                        expiry.Value,
+                        expiry.Value.UtcDateTime,
                         cancellationToken);
                 }
             }
@@ -187,7 +198,7 @@ namespace BTCPayServer.PaymentRequest
         {
             Task.Run(async () =>
             {
-                var delay = expiry - DateTime.Now;
+                var delay = expiry - DateTime.UtcNow;
                 if (delay > TimeSpan.Zero)
                     await Task.Delay(delay, cancellationToken);
                 await _PaymentRequestService.UpdatePaymentRequestStateIfNeeded(paymentRequestId);
@@ -200,7 +211,7 @@ namespace BTCPayServer.PaymentRequest
             if (req != null)
             {
                 await _HubContext.Clients.Group(paymentRequestId)
-                    .SendCoreAsync(PaymentRequestHub.InfoUpdated, new object[] {req});
+                    .SendCoreAsync(PaymentRequestHub.InfoUpdated, new object[] { req });
             }
         }
     }

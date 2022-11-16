@@ -1,18 +1,16 @@
-﻿using System;
-using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
-using System.Linq;
+using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Logging;
 using BTCPayServer.Services;
+using Microsoft.Extensions.Logging;
 
 namespace BTCPayServer.HostedServices
 {
     public class DynamicDnsHostedService : BaseAsyncService
     {
-        public DynamicDnsHostedService(IHttpClientFactory httpClientFactory, SettingsRepository settingsRepository)
+        public DynamicDnsHostedService(IHttpClientFactory httpClientFactory, SettingsRepository settingsRepository, Logs logs) : base(logs)
         {
             HttpClientFactory = httpClientFactory;
             SettingsRepository = settingsRepository;
@@ -29,7 +27,7 @@ namespace BTCPayServer.HostedServices
             };
         }
 
-        TimeSpan Period = TimeSpan.FromMinutes(60);
+        readonly TimeSpan Period = TimeSpan.FromMinutes(60);
         async Task UpdateRecord()
         {
             using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(Cancellation))
@@ -61,13 +59,11 @@ namespace BTCPayServer.HostedServices
                     }
                 }
             }
-            using (var delayCancel = CancellationTokenSource.CreateLinkedTokenSource(Cancellation))
-            {
-                var delay = Task.Delay(Period, delayCancel.Token);
-                var changed = SettingsRepository.WaitSettingsChanged<DynamicDnsSettings>(Cancellation);
-                await Task.WhenAny(delay, changed);
-                delayCancel.Cancel();
-            }
+            using var delayCancel = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+            var delay = Task.Delay(Period, delayCancel.Token);
+            var changed = SettingsRepository.WaitSettingsChanged<DynamicDnsSettings>(Cancellation);
+            await Task.WhenAny(delay, changed);
+            delayCancel.Cancel();
         }
     }
 }

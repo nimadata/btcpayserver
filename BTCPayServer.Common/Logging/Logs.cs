@@ -1,19 +1,16 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace BTCPayServer.Logging
 {
     public class Logs
     {
-        static Logs()
+        public Logs()
         {
             Configure(new FuncLoggerFactory(n => NullLogger.Instance));
         }
-        public static void Configure(ILoggerFactory factory)
+        public void Configure(ILoggerFactory factory)
         {
             if (factory == null)
                 Configure(new FuncLoggerFactory(n => NullLogger.Instance));
@@ -24,16 +21,16 @@ namespace BTCPayServer.Logging
                 Events = factory.CreateLogger("Events");
             }
         }
-        public static ILogger Configuration
+        public ILogger Configuration
         {
             get; set;
         }
-        public static ILogger PayServer
+        public ILogger PayServer
         {
             get; set;
         }
 
-        public static ILogger Events
+        public ILogger Events
         {
             get; set;
         }
@@ -43,7 +40,7 @@ namespace BTCPayServer.Logging
 
     public class FuncLoggerFactory : ILoggerFactory
     {
-        private Func<string, ILogger> createLogger;
+        private readonly Func<string, ILogger> createLogger;
         public FuncLoggerFactory(Func<string, ILogger> createLogger)
         {
             this.createLogger = createLogger;

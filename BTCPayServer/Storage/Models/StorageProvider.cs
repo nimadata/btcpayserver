@@ -1,10 +1,19 @@
-﻿namespace BTCPayServer.Storage.Models
+using System.ComponentModel.DataAnnotations;
+
+namespace BTCPayServer.Storage.Models
 {
     public enum StorageProvider
     {
-        AzureBlobStorage=0,
-        AmazonS3 =1,
-        GoogleCloudStorage =2,
-        FileSystem =3
+        [Display(Name = "Azure Blob Storage")]
+        AzureBlobStorage = 0,
+        
+        [Display(Name = "Amazon S3")]
+        AmazonS3 = 1,
+        
+        [Display(Name = "Google Cloud Storage")]
+        GoogleCloudStorage = 2,
+        
+        [Display(Name = "Local File System")]
+        FileSystem = 3
     }
 }

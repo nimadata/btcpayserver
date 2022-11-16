@@ -1,27 +1,24 @@
-﻿using Microsoft.AspNetCore.Hosting;
-using System.Linq;
 using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Builder;
-using System.Threading.Tasks;
-using System.Threading;
-using Microsoft.AspNetCore.Hosting.Server.Features;
-using System.Threading.Channels;
 using System.IO;
-using Newtonsoft.Json.Linq;
+using System.Linq;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Tests
 {
     public class CustomServer : IDisposable
     {
-        IWebHost _Host = null;
-        CancellationTokenSource _Closed = new CancellationTokenSource();
-        Channel<JObject> _Requests = Channel.CreateUnbounded<JObject>();
+        readonly IWebHost _Host = null;
+        readonly CancellationTokenSource _Closed = new CancellationTokenSource();
+        readonly Channel<JObject> _Requests = Channel.CreateUnbounded<JObject>();
         public CustomServer()
-        { 
+        {
             var port = Utils.FreeTcpPort();
             _Host = new WebHostBuilder()
                 .Configure(app =>
@@ -45,22 +42,20 @@ namespace BTCPayServer.Tests
 
         public async Task<JObject> GetNextRequest()
         {
-            using (CancellationTokenSource cancellation = new CancellationTokenSource(2000000))
+            using CancellationTokenSource cancellation = new CancellationTokenSource(2000000);
+            try
             {
-                try
+                JObject req = null;
+                while (!await _Requests.Reader.WaitToReadAsync(cancellation.Token) ||
+                    !_Requests.Reader.TryRead(out req))
                 {
-                    JObject req = null;
-                    while(!await _Requests.Reader.WaitToReadAsync(cancellation.Token) || 
-                        !_Requests.Reader.TryRead(out req))
-                    {
 
-                    }
-                    return req;
                 }
-                catch (TaskCanceledException)
-                {
-                    throw new Xunit.Sdk.XunitException("Callback to the webserver was expected, check if the callback url is accessible from internet");
-                }
+                return req;
+            }
+            catch (TaskCanceledException)
+            {
+                throw new Xunit.Sdk.XunitException("Callback to the webserver was expected, check if the callback url is accessible from internet");
             }
         }
 

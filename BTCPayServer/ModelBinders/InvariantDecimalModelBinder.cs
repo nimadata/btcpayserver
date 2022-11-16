@@ -1,11 +1,9 @@
-﻿// Copied and adjusted from https://github.com/aspnet/Mvc/blob/master/src/Microsoft.AspNetCore.Mvc.Core/ModelBinding/Binders/DecimalModelBinder.cs
+// Copied and adjusted from https://github.com/aspnet/Mvc/blob/master/src/Microsoft.AspNetCore.Mvc.Core/ModelBinding/Binders/DecimalModelBinder.cs
 using System;
 using System.Globalization;
 using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace BTCPayServer.ModelBinders
 {
@@ -53,7 +51,7 @@ namespace BTCPayServer.ModelBinders
                     // Parse() method trims the value (with common NumberStyles) then throws if the result is empty.
                     model = null;
                 }
-                else if (type == typeof(decimal))
+                else if (type == typeof(decimal) || type == typeof(decimal?))
                 {
                     model = decimal.Parse(value, _supportedStyles, culture);
                 }

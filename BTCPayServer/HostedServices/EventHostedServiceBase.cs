@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using BTCPayServer.Logging;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace BTCPayServer.HostedServices
 {
@@ -13,15 +13,26 @@ namespace BTCPayServer.HostedServices
     {
         private readonly EventAggregator _EventAggregator;
 
+        public Logs Logs { get; }
+
+        public EventAggregator EventAggregator => _EventAggregator;
+
         private List<IEventAggregatorSubscription> _Subscriptions;
         private CancellationTokenSource _Cts;
-
-        public EventHostedServiceBase(EventAggregator eventAggregator)
+        public CancellationToken CancellationToken => _Cts.Token;
+        public EventHostedServiceBase(EventAggregator eventAggregator, Logs logs)
         {
             _EventAggregator = eventAggregator;
+            Logs = logs;
+        }
+        
+        public EventHostedServiceBase(EventAggregator eventAggregator, ILogger logger)
+        {
+            _EventAggregator = eventAggregator;
+            Logs = new Logs() { PayServer = logger, Events = logger, Configuration = logger};
         }
 
-        Channel<object> _Events = Channel.CreateUnbounded<object>();
+        readonly Channel<object> _Events = Channel.CreateUnbounded<object>();
         public async Task ProcessEvents(CancellationToken cancellationToken)
         {
             while (await _Events.Reader.WaitToReadAsync(cancellationToken))
@@ -50,7 +61,7 @@ namespace BTCPayServer.HostedServices
         }
 
 
-        protected virtual void SubscibeToEvents()
+        protected virtual void SubscribeToEvents()
         {
 
         }
@@ -60,10 +71,15 @@ namespace BTCPayServer.HostedServices
             _Subscriptions.Add(_EventAggregator.Subscribe<T>(e => _Events.Writer.TryWrite(e)));
         }
 
+        protected void PushEvent(object obj)
+        {
+            _Events.Writer.TryWrite(obj);
+        }
+
         public virtual Task StartAsync(CancellationToken cancellationToken)
         {
             _Subscriptions = new List<IEventAggregatorSubscription>();
-            SubscibeToEvents();
+            SubscribeToEvents();
             _Cts = new CancellationTokenSource();
             _ProcessingEvents = ProcessEvents(_Cts.Token);
             return Task.CompletedTask;

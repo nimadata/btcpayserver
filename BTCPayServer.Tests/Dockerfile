@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1.100 AS builder
+FROM mcr.microsoft.com/dotnet/sdk:6.0.401-bullseye-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends chromium-driver \
     && rm -rf /var/lib/apt/lists/*
@@ -21,6 +21,9 @@ ENV SCREEN_HEIGHT 600 \
     SCREEN_WIDTH 1200
 
 COPY . .
-RUN cd BTCPayServer.Tests && dotnet build /p:CI_TESTS=true
+
+ARG CONFIGURATION_NAME=Release
+RUN cd BTCPayServer.Tests && dotnet build --configuration ${CONFIGURATION_NAME} /p:CI_TESTS=true /p:RazorCompileOnBuild=true
 WORKDIR /source/BTCPayServer.Tests
+ENV CONFIGURATION_NAME=${CONFIGURATION_NAME}
 ENTRYPOINT ["./docker-entrypoint.sh"]

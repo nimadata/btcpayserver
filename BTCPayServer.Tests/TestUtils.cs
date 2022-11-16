@@ -1,12 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.IO;
-using System.Text;
+using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using OpenQA.Selenium;
+using Xunit;
 using Xunit.Sdk;
-using System.Linq;
 
 namespace BTCPayServer.Tests
 {
@@ -37,6 +39,12 @@ namespace BTCPayServer.Tests
                 directory = directory.Parent;
             }
             return Path.Combine(directory.FullName, "TestData", relativeFilePath);
+        }
+
+        public static T AssertType<T>(this object obj)
+        {
+            Assert.IsType<T>(obj);
+            return (T)obj;
         }
 
         public static FormFile GetFormFile(string filename, string content)
@@ -81,6 +89,10 @@ namespace BTCPayServer.Tests
                     act();
                     break;
                 }
+                catch (WebDriverException) when (!cts.Token.IsCancellationRequested)
+                {
+                    cts.Token.WaitHandle.WaitOne(500);
+                }
                 catch (XunitException) when (!cts.Token.IsCancellationRequested)
                 {
                     cts.Token.WaitHandle.WaitOne(500);
@@ -88,9 +100,9 @@ namespace BTCPayServer.Tests
             }
         }
 
-        public static async Task EventuallyAsync(Func<Task> act)
+        public static async Task EventuallyAsync(Func<Task> act, int delay = 20000)
         {
-            CancellationTokenSource cts = new CancellationTokenSource(20000);
+            CancellationTokenSource cts = new CancellationTokenSource(delay);
             while (true)
             {
                 try
@@ -100,9 +112,16 @@ namespace BTCPayServer.Tests
                 }
                 catch (XunitException) when (!cts.Token.IsCancellationRequested)
                 {
-                    await Task.Delay(500);
+                    await Task.Delay(500, cts.Token);
                 }
             }
+        }
+
+        internal static IHttpClientFactory CreateHttpFactory()
+        {
+            var services = new ServiceCollection();
+            services.AddHttpClient();
+            return services.BuildServiceProvider().GetRequiredService<IHttpClientFactory>();
         }
     }
 }

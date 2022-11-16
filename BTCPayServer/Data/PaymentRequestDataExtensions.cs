@@ -1,22 +1,30 @@
-﻿using NBitcoin;
+using System;
+using BTCPayServer.Client.Models;
 using NBXplorer;
-using NBXplorer.DerivationStrategy;
 using Newtonsoft.Json.Linq;
-using static BTCPayServer.Data.PaymentRequestData;
 
 namespace BTCPayServer.Data
 {
     public static class PaymentRequestDataExtensions
     {
-        public static PaymentRequestBlob GetBlob(this PaymentRequestData paymentRequestData)
+        public static PaymentRequestBaseData GetBlob(this PaymentRequestData paymentRequestData)
         {
             var result = paymentRequestData.Blob == null
-                ? new PaymentRequestBlob()
-                : JObject.Parse(ZipUtils.Unzip(paymentRequestData.Blob)).ToObject<PaymentRequestBlob>();
+                ? new PaymentRequestBaseData()
+                : ParseBlob(paymentRequestData.Blob);
             return result;
         }
 
-        public static bool SetBlob(this PaymentRequestData paymentRequestData, PaymentRequestBlob blob)
+        private static PaymentRequestBaseData ParseBlob(byte[] blob)
+        {
+            var jobj = JObject.Parse(ZipUtils.Unzip(blob));
+            // Fixup some legacy payment requests
+            if (jobj["expiryDate"].Type == JTokenType.Date)
+                jobj["expiryDate"] = new JValue(NBitcoin.Utils.DateTimeToUnixTime(jobj["expiryDate"].Value<DateTime>()));
+            return jobj.ToObject<PaymentRequestBaseData>();
+        }
+
+        public static bool SetBlob(this PaymentRequestData paymentRequestData, PaymentRequestBaseData blob)
         {
             var original = new Serializer(null).ToString(paymentRequestData.GetBlob());
             var newBlob = new Serializer(null).ToString(blob);

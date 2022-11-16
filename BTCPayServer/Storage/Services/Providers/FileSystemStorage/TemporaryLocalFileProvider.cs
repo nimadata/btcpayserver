@@ -21,8 +21,8 @@ namespace BTCPayServer.Storage.Services.Providers.FileSystemStorage
         }
         public IFileInfo GetFileInfo(string tmpFileId)
         {
-            tmpFileId =tmpFileId.TrimStart('/', '\\');
-            var path = Path.Combine(_root.FullName,tmpFileId) ;
+            tmpFileId = tmpFileId.TrimStart('/', '\\');
+            var path = Path.Combine(_root.FullName, tmpFileId);
             if (!File.Exists(path))
             {
                 return new NotFoundFileInfo(tmpFileId);
@@ -30,7 +30,7 @@ namespace BTCPayServer.Storage.Services.Providers.FileSystemStorage
 
             var text = File.ReadAllText(path);
             var descriptor = JsonConvert.DeserializeObject<TemporaryLocalFileDescriptor>(text);
-            if (descriptor.Expiry < DateTime.Now)
+            if (descriptor.Expiry < DateTime.UtcNow)
             {
                 File.Delete(path);
                 return new NotFoundFileInfo(tmpFileId);

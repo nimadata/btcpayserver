@@ -1,16 +1,15 @@
-﻿using System;
+using System;
+using System.Linq;
+using BTCPayServer.Services.Rates;
 
 namespace BTCPayServer.Rating
 {
     public class CurrencyPair
     {
-        static readonly BTCPayNetworkProvider _NetworkProvider = new BTCPayNetworkProvider(NBitcoin.NetworkType.Mainnet);
         public CurrencyPair(string left, string right)
         {
-            if (right == null)
-                throw new ArgumentNullException(nameof(right));
-            if (left == null)
-                throw new ArgumentNullException(nameof(left));
+            ArgumentNullException.ThrowIfNull(right);
+            ArgumentNullException.ThrowIfNull(left);
             Right = right.ToUpperInvariant();
             Left = left.ToUpperInvariant();
         }
@@ -25,8 +24,7 @@ namespace BTCPayServer.Rating
         }
         public static bool TryParse(string str, out CurrencyPair value)
         {
-            if (str == null)
-                throw new ArgumentNullException(nameof(str));
+            ArgumentNullException.ThrowIfNull(str);
             value = null;
             str = str.Trim();
             if (str.Length > 12)
@@ -43,20 +41,28 @@ namespace BTCPayServer.Rating
                 if (currencyPair.Length < 6 || currencyPair.Length > 10)
                     return false;
                 if (currencyPair.Length == 6)
-                { 
-                    value = new CurrencyPair(currencyPair.Substring(0,3), currencyPair.Substring(3, 3));
+                {
+                    value = new CurrencyPair(currencyPair.Substring(0, 3), currencyPair.Substring(3, 3));
                     return true;
                 }
+
                 for (int i = 3; i < 5; i++)
                 {
                     var potentialCryptoName = currencyPair.Substring(0, i);
-                    var network = _NetworkProvider.GetNetwork<BTCPayNetworkBase>(potentialCryptoName);
-                    if (network != null)
+                    var currency = CurrencyNameTable.Instance.GetCurrencyData(potentialCryptoName, false);
+                    if (currency != null)
                     {
-                        value = new CurrencyPair(network.CryptoCode, currencyPair.Substring(i));
+                        value = new CurrencyPair(currency.Code, currencyPair.Substring(i));
                         return true;
                     }
                 }
+            }
+            else if (splitted.Length > 2)
+            {
+                // Some shitcoin have _ their own ticker name... Since we don't care about those, let's
+                // parse it anyway assuming the first part is one currency.
+                value = new CurrencyPair(splitted[0], string.Join("_", splitted.Skip(1).ToArray()));
+                return true;
             }
 
             return false;

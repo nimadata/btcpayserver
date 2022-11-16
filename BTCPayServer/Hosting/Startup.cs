@@ -1,31 +1,39 @@
-﻿using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
-using OpenIddict.Validation.AspNetCore;
-using OpenIddict.Abstractions;
-using Microsoft.AspNetCore.Builder;
 using System;
-using Microsoft.Extensions.DependencyInjection;
-using BTCPayServer.Filters;
-using BTCPayServer.Models;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.HttpOverrides;
-using BTCPayServer.Data;
-using Microsoft.Extensions.Logging;
-using BTCPayServer.Logging;
-using Microsoft.Extensions.Configuration;
-using BTCPayServer.Configuration;
+using System.Globalization;
 using System.IO;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using BTCPayServer.Security;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
-using OpenIddict.EntityFrameworkCore.Models;
+using System.Linq;
 using System.Net;
-using BTCPayServer.Security.OpenId;
+using BTCPayServer.Abstractions.Extensions;
+using BTCPayServer.Configuration;
+using BTCPayServer.Controllers.Greenfield;
+using BTCPayServer.Data;
+using BTCPayServer.Fido2;
+using BTCPayServer.Filters;
+using BTCPayServer.Logging;
 using BTCPayServer.PaymentRequest;
+using BTCPayServer.Plugins;
+using BTCPayServer.Security;
 using BTCPayServer.Services.Apps;
 using BTCPayServer.Storage;
+using Fido2NetLib;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OpenIddict.Core;
+using Microsoft.Net.Http.Headers;
+using NicolasDorier.RateLimits;
 
 namespace BTCPayServer.Hosting
 {
@@ -36,49 +44,110 @@ namespace BTCPayServer.Hosting
             Configuration = conf;
             _Env = env;
             LoggerFactory = loggerFactory;
+            Logs = new Logs();
+            Logs.Configure(loggerFactory);
         }
-        IWebHostEnvironment _Env;
+
+        readonly IWebHostEnvironment _Env;
         public IConfiguration Configuration
         {
             get; set;
         }
         public ILoggerFactory LoggerFactory { get; }
+        public Logs Logs { get; }
 
         public void ConfigureServices(IServiceCollection services)
         {
-            Logs.Configure(LoggerFactory);
-            services.ConfigureBTCPayServer(Configuration);
             services.AddMemoryCache();
+            services.AddDataProtection()
+                .SetApplicationName("BTCPay Server")
+                .PersistKeysToFileSystem(new DirectoryInfo(new DataDirectories().Configure(Configuration).DataDir));
             services.AddIdentity<ApplicationUser, IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
+            services.Configure<AuthenticationOptions>(opts =>
+            {
+                opts.DefaultAuthenticateScheme = null;
+                opts.DefaultChallengeScheme = null;
+                opts.DefaultForbidScheme = null;
+                opts.DefaultScheme = IdentityConstants.ApplicationScheme;
+                opts.DefaultSignInScheme = null;
+                opts.DefaultSignOutScheme = null;
+            });
+            services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme, opt =>
+            {
+                opt.LoginPath = "/login";
+                opt.AccessDeniedPath = "/errors/403";
+                opt.LogoutPath = "/logout";
+            });
 
-            ConfigureOpenIddict(services);
+            services.Configure<SecurityStampValidatorOptions>(opts =>
+            {
+                opts.ValidationInterval = TimeSpan.FromMinutes(5.0);
+            });
 
-            services.AddBTCPayServer(Configuration);
+            services.AddBTCPayServer(Configuration, Logs);
             services.AddProviderStorage();
             services.AddSession();
             services.AddSignalR();
-            services.AddMvc(o =>
+            services.AddFido2(options =>
+                {
+                    options.ServerName = "BTCPay Server";
+                })
+                .AddCachedMetadataService(config =>
+                {
+                    //They'll be used in a "first match wins" way in the order registered
+                    config.AddStaticMetadataRepository();
+                });
+            var descriptor = services.Single(descriptor => descriptor.ServiceType == typeof(Fido2Configuration));
+            services.Remove(descriptor);
+            services.AddScoped(provider =>
             {
-                o.Filters.Add(new XFrameOptionsAttribute("DENY"));
-                o.Filters.Add(new XContentTypeOptionsAttribute("nosniff"));
-                o.Filters.Add(new XXSSProtectionAttribute());
-                o.Filters.Add(new ReferrerPolicyAttribute("same-origin"));
-                //o.Filters.Add(new ContentSecurityPolicyAttribute()
-                //{
-                //    FontSrc = "'self' https://fonts.gstatic.com/",
-                //    ImgSrc = "'self' data:",
-                //    DefaultSrc = "'none'",
-                //    StyleSrc = "'self' 'unsafe-inline'",
-                //    ScriptSrc = "'self' 'unsafe-inline'"
-                //});
+                var httpContext = provider.GetService<IHttpContextAccessor>();
+                return new Fido2Configuration()
+                {
+                    ServerName = "BTCPay Server",
+                    Origin = $"{httpContext.HttpContext.Request.Scheme}://{httpContext.HttpContext.Request.Host}",
+                    ServerDomain = httpContext.HttpContext.Request.Host.Host
+                };
+            });
+            services.AddScoped<Fido2Service>();
+            services.AddSingleton<UserLoginCodeService>();
+			services.AddSingleton<LnurlAuthService>();
+			services.AddSingleton<LightningAddressService>();
+            var mvcBuilder = services.AddMvc(o =>
+             {
+                 o.Filters.Add(new XFrameOptionsAttribute("DENY"));
+                 o.Filters.Add(new XContentTypeOptionsAttribute("nosniff"));
+                 o.Filters.Add(new XXSSProtectionAttribute());
+                 o.Filters.Add(new ReferrerPolicyAttribute("same-origin"));
+                 o.ModelBinderProviders.Insert(0, new ModelBinders.DefaultModelBinderProvider());
+                 if (!Configuration.GetOrDefault<bool>("nocsp", false))
+                     o.Filters.Add(new ContentSecurityPolicyAttribute(CSPTemplate.AntiXSS));
+                 o.Filters.Add(new JsonHttpExceptionFilter());
+                 o.Filters.Add(new JsonObjectExceptionFilter());
+             })
+            .ConfigureApiBehaviorOptions(options =>
+            {
+                options.InvalidModelStateResponseFactory = context =>
+                {
+                    return new UnprocessableEntityObjectResult(context.ModelState.ToGreenfieldValidationError());
+                };
+            })
+            .AddRazorOptions(o =>
+            {
+                // /Components/{View Component Name}/{View Name}.cshtml
+                o.ViewLocationFormats.Add("/{0}.cshtml");
+                o.PageViewLocationFormats.Add("/{0}.cshtml");
             })
             .AddNewtonsoftJson()
-#if DEBUG
             .AddRazorRuntimeCompilation()
-#endif
+            .AddPlugins(services, Configuration, LoggerFactory)
             .AddControllersAsServices();
+
+            LowercaseTransformer.Register(services);
+            ValidateControllerNameTransformer.Register(services);
+
             services.TryAddScoped<ContentSecurityPolicies>();
             services.Configure<IdentityOptions>(options =>
             {
@@ -91,12 +160,6 @@ namespace BTCPayServer.Hosting
                 options.Lockout.MaxFailedAccessAttempts = 5;
                 options.Lockout.AllowedForNewUsers = true;
                 options.Password.RequireUppercase = false;
-                // Configure Identity to use the same JWT claims as OpenIddict instead
-                // of the legacy WS-Federation claims it uses by default (ClaimTypes),
-                // which saves you from doing the mapping in your authorization controller.
-                options.ClaimsIdentity.UserNameClaimType = OpenIddictConstants.Claims.Name;
-                options.ClaimsIdentity.UserIdClaimType = OpenIddictConstants.Claims.Subject;
-                options.ClaimsIdentity.RoleClaimType = OpenIddictConstants.Claims.Role;
             });
             // If the HTTPS certificate path is not set this logic will NOT be used and the default Kestrel binding logic will be.
             string httpsCertificateFilePath = Configuration.GetOrDefault<string>("HttpsCertificateFilePath", null);
@@ -139,90 +202,51 @@ namespace BTCPayServer.Hosting
                 });
             }
         }
-
-        private void ConfigureOpenIddict(IServiceCollection services)
-        {
-            // Register the OpenIddict services.
-            services.AddOpenIddict()
-                .AddCore(options =>
-                {
-                    // Configure OpenIddict to use the Entity Framework Core stores and entities.
-                    options.UseEntityFrameworkCore()
-                        .UseDbContext<ApplicationDbContext>()
-                        .ReplaceDefaultEntities<BTCPayOpenIdClient, BTCPayOpenIdAuthorization, OpenIddictScope<string>,
-                            BTCPayOpenIdToken, string>();
-                })
-                .AddServer(options =>
-                {
-                    options.UseAspNetCore()
-                        .EnableStatusCodePagesIntegration()
-                        .EnableAuthorizationEndpointPassthrough()
-                        .EnableLogoutEndpointPassthrough()
-                        .EnableAuthorizationEndpointCaching()
-                        .DisableTransportSecurityRequirement();
-
-                    // Enable the token endpoint (required to use the password flow).
-                    options.SetTokenEndpointUris("/connect/token");
-                    options.SetAuthorizationEndpointUris("/connect/authorize");
-                    options.SetLogoutEndpointUris("/connect/logout");
-
-                    //we do not care about these granular controls for now
-                    options.IgnoreScopePermissions();
-                    options.IgnoreEndpointPermissions();
-                    // Allow client applications various flows
-                    options.AllowImplicitFlow();
-                    options.AllowClientCredentialsFlow();
-                    options.AllowRefreshTokenFlow();
-                    options.AllowPasswordFlow();
-                    options.AllowAuthorizationCodeFlow();
-                    options.UseRollingTokens();
-
-                    options.RegisterScopes(
-                        OpenIddictConstants.Scopes.OpenId,
-                        BTCPayScopes.StoreManagement,
-                        BTCPayScopes.ServerManagement
-                    );
-                    options.AddEventHandler(PasswordGrantTypeEventHandler.Descriptor);
-                    options.AddEventHandler(OpenIdGrantHandlerCheckCanSignIn.Descriptor);
-                    options.AddEventHandler(ClientCredentialsGrantTypeEventHandler.Descriptor);
-                    options.AddEventHandler(LogoutEventHandler.Descriptor);
-                    options.ConfigureSigningKey(Configuration);
-                })
-                .AddValidation(options =>
-                {
-                    options.UseLocalServer();
-                    options.UseAspNetCore();
-                });
-        }
-
         public void Configure(
             IApplicationBuilder app,
             IWebHostEnvironment env,
             IServiceProvider prov,
             BTCPayServerOptions options,
-            ILoggerFactory loggerFactory)
+            IOptions<DataDirectories> dataDirectories,
+            ILoggerFactory loggerFactory,
+            IRateLimitService rateLimits)
         {
+            Logs.Configure(loggerFactory);
             Logs.Configuration.LogInformation($"Root Path: {options.RootPath}");
             if (options.RootPath.Equals("/", StringComparison.OrdinalIgnoreCase))
             {
-                ConfigureCore(app, env, prov, loggerFactory, options);
+                ConfigureCore(app, env, prov, dataDirectories, rateLimits);
             }
             else
             {
                 app.Map(options.RootPath, appChild =>
                 {
-                    ConfigureCore(appChild, env, prov, loggerFactory, options);
+                    ConfigureCore(appChild, env, prov, dataDirectories, rateLimits);
                 });
             }
         }
-
-        private static void ConfigureCore(IApplicationBuilder app, IWebHostEnvironment env, IServiceProvider prov, ILoggerFactory loggerFactory, BTCPayServerOptions options)
+        private void ConfigureCore(IApplicationBuilder app, IWebHostEnvironment env, IServiceProvider prov, IOptions<DataDirectories> dataDirectories, IRateLimitService rateLimits)
         {
-            Logs.Configure(loggerFactory);
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
+                rateLimits.SetZone($"zone={ZoneLimits.Login} rate=1000r/min burst=100 nodelay");
+                rateLimits.SetZone($"zone={ZoneLimits.PublicInvoices} rate=1000r/min burst=100 nodelay");
+                rateLimits.SetZone($"zone={ZoneLimits.Register} rate=1000r/min burst=100 nodelay");
+                rateLimits.SetZone($"zone={ZoneLimits.PayJoin} rate=1000r/min burst=100 nodelay");
+                rateLimits.SetZone($"zone={ZoneLimits.Shopify} rate=1000r/min burst=100 nodelay");
+                rateLimits.SetZone($"zone={ZoneLimits.ForgotPassword} rate=5r/d burst=3 nodelay");
             }
+            else
+            {
+                rateLimits.SetZone($"zone={ZoneLimits.Login} rate=5r/min burst=3 nodelay");
+                rateLimits.SetZone($"zone={ZoneLimits.PublicInvoices} rate=4r/min burst=10 delay=3");
+                rateLimits.SetZone($"zone={ZoneLimits.Register} rate=2r/min burst=2 nodelay");
+                rateLimits.SetZone($"zone={ZoneLimits.PayJoin} rate=5r/min burst=3 nodelay");
+                rateLimits.SetZone($"zone={ZoneLimits.Shopify} rate=20r/min burst=3 nodelay");
+                rateLimits.SetZone($"zone={ZoneLimits.ForgotPassword} rate=5r/d burst=5 nodelay");
+            }
+
             app.UseHeadersOverride();
             var forwardingOptions = new ForwardedHeadersOptions()
             {
@@ -232,26 +256,45 @@ namespace BTCPayServer.Hosting
             forwardingOptions.KnownProxies.Clear();
             forwardingOptions.ForwardedHeaders = ForwardedHeaders.All;
             app.UseForwardedHeaders(forwardingOptions);
+
+            app.UseStatusCodePagesWithReExecute("/errors/{0}");
+
             app.UsePayServer();
             app.UseRouting();
             app.UseCors();
 
-            app.UseStaticFiles();
-            app.UseProviderStorage(options);
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                OnPrepareResponse = ctx =>
+                {
+                    // Cache static assets for one year, set asp-append-version="true" on references to update on change.
+                    // https://andrewlock.net/adding-cache-control-headers-to-static-files-in-asp-net-core/
+                    const int durationInSeconds = 60 * 60 * 24 * 365;
+                    ctx.Context.Response.Headers[HeaderNames.CacheControl] = "public,max-age=" + durationInSeconds;
+                }
+            });
+
+            app.UseProviderStorage(dataDirectories);
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseSession();
 
             app.UseWebSockets();
-            app.UseStatusCodePages();
 
+            app.UseCookiePolicy(new CookiePolicyOptions()
+            {
+                HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always,
+                Secure = Microsoft.AspNetCore.Http.CookieSecurePolicy.SameAsRequest
+            });
             app.UseEndpoints(endpoints =>
             {
                 AppHub.Register(endpoints);
                 PaymentRequestHub.Register(endpoints);
+                endpoints.MapRazorPages();
                 endpoints.MapControllers();
-                endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
+                endpoints.MapControllerRoute("default", "{controller:validate=UIHome}/{action:lowercase=Index}/{id?}");
             });
+            app.UsePlugins();
         }
     }
 }

@@ -1,7 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
+using BTCPayServer.Abstractions.Extensions;
 using BTCPayServer.Controllers;
 using NBitcoin;
 
@@ -31,12 +31,12 @@ namespace BTCPayServer.Configuration
         /// Return a connectionString which does not depends on external resources or information like relative path or file path
         /// </summary>
         /// <returns></returns>
-        public async Task<ExternalConnectionString> Expand(Uri absoluteUrlBase, ExternalServiceTypes serviceType, NetworkType network)
+        public async Task<ExternalConnectionString> Expand(Uri absoluteUrlBase, ExternalServiceTypes serviceType, ChainName network)
         {
             var connectionString = this.Clone();
             // Transform relative URI into absolute URI
             var serviceUri = connectionString.Server.IsAbsoluteUri ? connectionString.Server : ToRelative(absoluteUrlBase, connectionString.Server.ToString());
-            var isSecure = network != NetworkType.Mainnet ||
+            var isSecure = network != ChainName.Mainnet ||
                        serviceUri.Scheme == "https" ||
                        serviceUri.DnsSafeHost.EndsWith(".onion", StringComparison.OrdinalIgnoreCase) ||
                        Extensions.IsLocalNetwork(serviceUri.DnsSafeHost);
@@ -46,7 +46,7 @@ namespace BTCPayServer.Configuration
             }
             connectionString.Server = serviceUri;
 
-            if (serviceType == ExternalServiceTypes.LNDGRPC || serviceType == ExternalServiceTypes.LNDRest)
+            if (serviceType == ExternalServiceTypes.LNDGRPC || serviceType == ExternalServiceTypes.LNDRest || serviceType == ExternalServiceTypes.CLightningRest)
             {
                 // Read the MacaroonDirectory
                 if (connectionString.MacaroonDirectoryPath != null)
@@ -77,31 +77,33 @@ namespace BTCPayServer.Configuration
                 }
             }
 
-            if (serviceType == ExternalServiceTypes.Charge || serviceType == ExternalServiceTypes.RTL || serviceType == ExternalServiceTypes.Spark)
+            if (new[] { ExternalServiceTypes.Charge, ExternalServiceTypes.RTL, ExternalServiceTypes.ThunderHub, ExternalServiceTypes.Spark, ExternalServiceTypes.Configurator }.Contains(serviceType))
             {
                 // Read access key from cookie file
                 if (connectionString.CookieFilePath != null)
                 {
-                    string cookieFileContent = null;
-                    bool isFake = false;
-                    try
+                    bool isFake = connectionString.CookieFilePath == "fake"; // Hacks for testing
+                    string cookieFileContent = isFake ? "fake" : null;
+                    if (!isFake)
                     {
-                        cookieFileContent = await System.IO.File.ReadAllTextAsync(connectionString.CookieFilePath);
-                        isFake = connectionString.CookieFilePath == "fake";
-                        connectionString.CookieFilePath = null;
+                        try
+                        {
+                            cookieFileContent = await System.IO.File.ReadAllTextAsync(connectionString.CookieFilePath);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new System.IO.FileNotFoundException("Cookie file path not found", ex);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        throw new System.IO.FileNotFoundException("Cookie file path not found", ex);
-                    }
-                    if (serviceType == ExternalServiceTypes.RTL)
+                    connectionString.CookieFilePath = null;
+                    
+                    if (serviceType == ExternalServiceTypes.RTL || serviceType == ExternalServiceTypes.Configurator || serviceType == ExternalServiceTypes.ThunderHub)
                     {
                         connectionString.AccessKey = cookieFileContent;
                     }
                     else if (serviceType == ExternalServiceTypes.Spark)
                     {
-                        var cookie = (isFake ? "fake:fake:fake" // Hacks for testing
-                                    : cookieFileContent).Split(':');
+                        var cookie = (isFake ? "fake:fake:fake" : cookieFileContent).Split(':');
                         if (cookie.Length >= 3)
                         {
                             connectionString.AccessKey = cookie[2];
@@ -144,18 +146,15 @@ namespace BTCPayServer.Configuration
         }
         public bool? IsOnion()
         {
-            if (this.Server == null || !this.Server.IsAbsoluteUri)
-                return null;
-            return this.Server.DnsSafeHost.EndsWith(".onion", StringComparison.OrdinalIgnoreCase);
+            return Server?.IsOnion();
         }
         public static bool TryParse(string str, out ExternalConnectionString result, out string error)
         {
-            if (str == null)
-                throw new ArgumentNullException(nameof(str));
+            ArgumentNullException.ThrowIfNull(str);
             error = null;
             result = null;
             var resultTemp = new ExternalConnectionString();
-            foreach(var kv in str.Split(';')
+            foreach (var kv in str.Split(';')
                         .Select(part => part.Split('='))
                         .Where(kv => kv.Length == 2))
             {
@@ -183,7 +182,7 @@ namespace BTCPayServer.Configuration
                             error = "Duplicated cookiefile attribute";
                             return false;
                         }
-                            
+
                         resultTemp.CookieFilePath = kv[1];
                         break;
                     case "macaroondirectorypath":

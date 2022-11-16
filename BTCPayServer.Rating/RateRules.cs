@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -95,10 +95,12 @@ namespace BTCPayServer.Rating
             }
         }
 
-        SyntaxNode root;
-        RuleList ruleList;
+        readonly SyntaxNode root;
+        readonly RuleList ruleList;
 
         decimal _Spread;
+        private const string ImplicitSatsRule = "SATS_X = SATS_BTC * BTC_X;\nSATS_BTC = 0.00000001;\n";
+
         public decimal Spread
         {
             get
@@ -126,6 +128,7 @@ namespace BTCPayServer.Rating
         }
         public static bool TryParse(string str, out RateRules rules, out List<RateRulesErrors> errors)
         {
+            str = ImplicitSatsRule + str;
             rules = null;
             errors = null;
             var expression = CSharpSyntaxTree.ParseText(str, new CSharpParseOptions(LanguageVersion.Default).WithKind(SourceCodeKind.Script));
@@ -158,7 +161,7 @@ namespace BTCPayServer.Rating
         public ExpressionSyntax FindBestCandidate(CurrencyPair p)
         {
             var invP = p.Inverse();
-            var candidates = new List<(CurrencyPair Pair, int Prioriy, ExpressionSyntax Expression, bool Inverse)>();
+            var candidates = new List<(CurrencyPair Pair, int Priority, ExpressionSyntax Expression, bool Inverse)>();
             foreach (var pair in new[]
             {
                 (Pair: p, Priority: 0, Inverse: false),
@@ -178,7 +181,7 @@ namespace BTCPayServer.Rating
             if (candidates.Count == 0)
                 return CreateExpression($"ERR_NO_RULE_MATCH({p})");
             var best = candidates
-                    .OrderBy(c => c.Prioriy)
+                    .OrderBy(c => c.Priority)
                     .ThenBy(c => c.Expression.Span.Start)
                     .First();
             return best.Inverse
@@ -195,6 +198,7 @@ namespace BTCPayServer.Rating
         {
             return root.NormalizeWhitespace("", "\n")
                 .ToFullString()
+                .Replace(ImplicitSatsRule, string.Empty, StringComparison.OrdinalIgnoreCase)
                 .Replace("{\n", string.Empty, StringComparison.OrdinalIgnoreCase)
                             .Replace("\n}", string.Empty, StringComparison.OrdinalIgnoreCase);
         }
@@ -397,8 +401,8 @@ namespace BTCPayServer.Rating
         }
         class FlattenExpressionRewriter : CSharpSyntaxRewriter
         {
-            RateRules parent;
-            CurrencyPair pair;
+            readonly RateRules parent;
+            readonly CurrencyPair pair;
             int nested = 0;
             public FlattenExpressionRewriter(RateRules parent, CurrencyPair pair)
             {
@@ -487,9 +491,15 @@ namespace BTCPayServer.Rating
                 };
             }
         }
-        private SyntaxNode expression;
-        FlattenExpressionRewriter flatten;
+        private readonly SyntaxNode expression;
+        readonly FlattenExpressionRewriter flatten;
 
+        public static RateRule CreateFromExpression(string expression, CurrencyPair currencyPair)
+        {
+            var ex = RateRules.CreateExpression(expression);
+            RateRules.TryParse("", out var rules);
+            return new RateRule(rules, currencyPair, ex);
+        }
         public RateRule(RateRules parent, CurrencyPair currencyPair, SyntaxNode candidate)
         {
             _CurrencyPair = currencyPair;
@@ -526,7 +536,10 @@ namespace BTCPayServer.Rating
             var rewriter = new ReplaceExchangeRateRewriter();
             rewriter.Rates = ExchangeRates;
             var result = rewriter.Visit(this.expression);
-            Errors.AddRange(rewriter.Errors);
+            foreach (var item in rewriter.Errors)
+            {
+                Errors.Add(item);
+            }
             _Evaluated = result.NormalizeWhitespace("", "\n").ToString();
             if (HasError)
                 return false;
@@ -535,7 +548,10 @@ namespace BTCPayServer.Rating
             calculate.Visit(result);
             if (calculate.Values.Count != 1 || calculate.Errors.Count != 0)
             {
-                Errors.AddRange(calculate.Errors);
+                foreach (var item in calculate.Errors)
+                {
+                    Errors.Add(item);
+                }
                 return false;
             }
             _BidAsk = calculate.Values.Pop();
